@@ -45,7 +45,7 @@ router.post("/login", async (req, res) => {
 
     const { username, password } = req.body;
 
-    console.log("LOGIN:", username);
+    console.log("LOGIN REQUEST:", username);
 
     if (!username || !password) {
       return res.status(400).json({ error: "Missing credentials" });
@@ -56,17 +56,25 @@ router.post("/login", async (req, res) => {
       [username]
     );
 
+    console.log("DB RESULT:", result.rows);
+
     if (!result.rows.length) {
       return res.status(401).json({ error: "User not found" });
     }
 
     const user = result.rows[0];
 
+    if (!user.password_hash) {
+      return res.status(500).json({ error: "Password hash missing in DB" });
+    }
+
     const valid = await bcrypt.compare(password, user.password_hash);
 
     if (!valid) {
       return res.status(401).json({ error: "Wrong password" });
     }
+
+    const SECRET = process.env.JWT_SECRET || "fallback_secret";
 
     const token = jwt.sign(
       { id: user.id },
@@ -77,7 +85,7 @@ router.post("/login", async (req, res) => {
     res.json({ token });
 
   } catch (err) {
-    console.error("🔥 LOGIN ERROR:", err);
+    console.error("🔥 LOGIN ERROR FULL:", err);
     res.status(500).json({
       error: "Login failed",
       details: err.message
