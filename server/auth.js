@@ -25,22 +25,34 @@ router.post("/register", async (req, res) => {
 // LOGIN
 router.post("/login", async (req, res) => {
 
-  const { username, password } = req.body;
+  try {
 
-  const user = await pool.query(
-    "SELECT * FROM users WHERE username=$1",
-    [username]
-  );
+    const { username, password } = req.body;
 
-  if (!user.rows.length) return res.status(401).json({ error: "Invalid" });
+    const user = await pool.query(
+      "SELECT * FROM users WHERE username=$1",
+      [username]
+    );
 
-  const valid = await bcrypt.compare(password, user.rows[0].password_hash);
+    if (!user.rows.length) {
+      return res.status(401).json({ error: "Invalid" });
+    }
 
-  if (!valid) return res.status(401).json({ error: "Invalid" });
+    const valid = await bcrypt.compare(password, user.rows[0].password_hash);
 
-  const token = jwt.sign({ id: user.rows[0].id }, SECRET);
+    if (!valid) {
+      return res.status(401).json({ error: "Invalid" });
+    }
 
-  res.json({ token });
+    const token = jwt.sign({ id: user.rows[0].id }, process.env.JWT_SECRET);
+
+    res.json({ token });
+
+  } catch (err) {
+    console.error("🔥 LOGIN ERROR:", err);
+    res.status(500).json({ error: "Login failed" });
+  }
+
 });
 
 export default router;
