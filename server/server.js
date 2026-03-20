@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 
 import qcompute from "./qcompute.js";
 import authRoutes from "./auth.js";
+import { pool } from "./db.js";
 
 // Load env variables
 dotenv.config();
@@ -17,6 +18,18 @@ console.log("DATABASE_URL:", process.env.DATABASE_URL ? "SET ✅" : "MISSING ❌
 console.log("JWT_SECRET:", process.env.JWT_SECRET ? "SET ✅" : "MISSING ❌");
 
 // =========================
+// TEST DB CONNECTION (VERY IMPORTANT)
+// =========================
+(async () => {
+  try {
+    await pool.query("SELECT 1");
+    console.log("✅ DB connection working");
+  } catch (err) {
+    console.error("❌ DB connection FAILED:", err.message);
+  }
+})();
+
+// =========================
 // MIDDLEWARE
 // =========================
 app.use(express.json());
@@ -29,14 +42,14 @@ app.use("/auth", authRoutes);
 app.use("/qcompute", qcompute);
 
 // =========================
-// HEALTH CHECK (IMPORTANT)
+// HEALTH CHECK
 // =========================
 app.get("/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
 });
 
 // =========================
-// FALLBACK (SPA SUPPORT)
+// FALLBACK
 // =========================
 app.get("*", (req, res) => {
   res.sendFile("index.html", { root: "public" });
