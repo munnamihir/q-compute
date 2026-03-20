@@ -47,6 +47,11 @@ async function updateWallet(){
       }
     });
 
+    if (!res.ok) {
+      console.error("Wallet API failed:", res.status);
+      return;
+    }
+
     const data = await res.json();
 
     document.getElementById("earnings").innerText =
