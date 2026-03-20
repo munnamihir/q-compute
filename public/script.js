@@ -9,19 +9,24 @@ let token = localStorage.getItem("token") || "";
 async function login(){
 
   try {
+
     const res = await fetch("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username: "mihir",
-        password: "MeRW84#Munna"
+        password: "12345678"
       })
     });
 
-    const data = await res.json();
+    const text = await res.text();
 
-    if (!data.token) {
-      console.error("Login failed:", data);
+    console.log("LOGIN RAW RESPONSE:", text);
+
+    const data = JSON.parse(text);
+
+    if (!res.ok) {
+      console.error("❌ Login failed:", data);
       return;
     }
 
@@ -31,7 +36,7 @@ async function login(){
     console.log("✅ Logged in");
 
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("🔥 Login crash:", err);
   }
 }
 
