@@ -1,99 +1,67 @@
 import express from "express";
 import { nanoid } from "nanoid";
+import { pool } from "./db.js";
+import { auth } from "./middleware.js";
 
 const router = express.Router();
 
-// ===== In-memory DB =====
-let tasks = [];
-let users = {};
-let transactions = [];
+// GET TASK
+router.get("/task", auth, async (req, res) => {
 
-// ===== Generate Tasks =====
-function generateTasks() {
-  if (tasks.length < 5) {
-    for (let i = 0; i < 5; i++) {
-      tasks.push({
-        id: nanoid(6),
-        number: Math.floor(Math.random() * 50),
-        reward: 0.02
-      });
-    }
+  let task = await pool.query(
+    "SELECT * FROM tasks WHERE status='pending' LIMIT 1"
+  );
+
+  if (!task.rows.length) {
+
+    const id = nanoid(6);
+    const number = Math.floor(Math.random() * 50);
+
+    await pool.query(
+      "INSERT INTO tasks(id, number, reward) VALUES($1,$2,$3)",
+      [id, number, 0.02]
+    );
+
+    task = await pool.query("SELECT * FROM tasks WHERE id=$1", [id]);
   }
-}
 
-// ===== Get Tasks =====
-router.get("/tasks", (req, res) => {
-  generateTasks();
-  res.json(tasks);
+  res.json(task.rows[0]);
 });
 
-// ===== Submit Task =====
-router.post("/submit", (req, res) => {
+// SUBMIT TASK
+router.post("/submit", auth, async (req, res) => {
 
-  const { taskId, result, userId } = req.body;
+  const { taskId, result } = req.body;
 
-  const task = tasks.find(t => t.id === taskId);
+  const task = await pool.query(
+    "SELECT * FROM tasks WHERE id=$1",
+    [taskId]
+  );
 
-  if (!task) {
+  if (!task.rows.length) {
     return res.status(400).json({ error: "Invalid task" });
   }
 
-  if (result === task.number * 2) {
+  const t = task.rows[0];
 
-    tasks = tasks.filter(t => t.id !== taskId);
+  if (result === t.number * 2) {
 
-    if (!users[userId]) {
-      users[userId] = { balance: 0 };
-    }
+    await pool.query("UPDATE tasks SET status='done' WHERE id=$1", [taskId]);
 
-    users[userId].balance += task.reward;
+    await pool.query(
+      "UPDATE users SET balance = balance + $1 WHERE id=$2",
+      [t.reward, req.user.id]
+    );
 
-    transactions.push({
-      id: nanoid(6),
-      userId,
-      reward: task.reward,
-      time: new Date().toISOString()
-    });
+    await pool.query(
+      "INSERT INTO transactions(id,user_id,reward) VALUES($1,$2,$3)",
+      [nanoid(6), req.user.id, t.reward]
+    );
 
-    return res.json({
-      success: true,
-      reward: task.reward,
-      total: users[userId].balance
-    });
+    return res.json({ success: true });
   }
 
   res.json({ success: false });
-});
-
-// ===== Wallet =====
-router.get("/wallet/:userId", (req, res) => {
-  const user = users[req.params.userId];
-  res.json(user || { balance: 0 });
-});
-
-// ===== Transactions =====
-router.get("/transactions/:userId", (req, res) => {
-  const data = transactions.filter(t => t.userId === req.params.userId);
-  res.json(data);
-});
-
-// ===== Withdraw =====
-router.post("/withdraw", (req, res) => {
-
-  const { userId } = req.body;
-
-  if (!users[userId] || users[userId].balance <= 0) {
-    return res.json({ error: "No balance available" });
-  }
-
-  const amount = users[userId].balance;
-
-  users[userId].balance = 0;
-
-  res.json({
-    success: true,
-    message: `Withdrawal of $${amount.toFixed(2)} requested`
-  });
 });
 
 export default router;
