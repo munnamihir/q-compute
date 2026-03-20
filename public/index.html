@@ -4,13 +4,30 @@
   <title>Q-Compute</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<h1>Q-Compute</h1>
+<div class="container">
 
-<h2 id="earnings">$0.00</h2>
+  <h1>⚡ Q-Compute</h1>
+  <p class="subtitle">Earn money using secure computation</p>
 
-<button onclick="start()">Start Earning</button>
+  <div class="card">
+    <h2>Balance</h2>
+    <h1 id="earnings">$0.00</h1>
+  </div>
+
+  <div class="buttons">
+    <button onclick="start()">🚀 Start Earning</button>
+    <button onclick="withdraw()">💸 Withdraw</button>
+  </div>
+
+  <div class="card">
+    <h3>📊 Transactions</h3>
+    <ul id="tx"></ul>
+  </div>
+
+</div>
 
 <script src="script.js"></script>
 
