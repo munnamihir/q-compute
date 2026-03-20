@@ -74,7 +74,17 @@ async function loadTransactions(){
       }
     });
 
+    if (!res.ok) {
+      console.error("Transactions API failed:", res.status);
+      return;
+    }
+
     const data = await res.json();
+
+    if (!Array.isArray(data)) {
+      console.error("Invalid transactions format:", data);
+      return;
+    }
 
     const ul = document.getElementById("tx");
     ul.innerHTML = "";
