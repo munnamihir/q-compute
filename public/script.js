@@ -1,89 +1,195 @@
-const userId = "mihir";
+// =========================
+// GLOBAL STATE
+// =========================
+let token = localStorage.getItem("token") || "";
 
-// ===== Update Wallet =====
-async function updateWallet(){
-  const res = await fetch(`/qcompute/wallet/${userId}`);
-  const data = await res.json();
+// =========================
+// LOGIN FUNCTION (AUTO LOGIN FOR NOW)
+// =========================
+async function login(){
 
-  document.getElementById("earnings").innerText =
-    "$" + data.balance.toFixed(2);
-}
-
-// ===== Load Transactions =====
-async function loadTransactions(){
-  const res = await fetch(`/qcompute/transactions/${userId}`);
-  const data = await res.json();
-
-  const ul = document.getElementById("tx");
-  ul.innerHTML = "";
-
-  data.reverse().forEach(t => {
-    const li = document.createElement("li");
-    li.innerText = `+$${t.reward.toFixed(2)} — ${new Date(t.time).toLocaleTimeString()}`;
-    ul.appendChild(li);
-  });
-}
-
-// ===== Start Worker =====
-async function start(){
-
-  while(true){
-
-    const res = await fetch("/qcompute/tasks");
-    const tasks = await res.json();
-
-    if(tasks.length === 0){
-      await new Promise(r => setTimeout(r, 1000));
-      continue;
-    }
-
-    const task = tasks[0];
-
-    const result = task.number * 2;
-
-    const submit = await fetch("/qcompute/submit",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
+  try {
+    const res = await fetch("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        taskId: task.id,
-        result,
-        userId
+        username: "mihir",
+        password: "12345678"
       })
     });
 
-    const data = await submit.json();
+    const data = await res.json();
 
-    if(data.success){
-      updateWallet();
-      loadTransactions();
+    if (!data.token) {
+      console.error("Login failed:", data);
+      return;
     }
 
+    token = data.token;
+    localStorage.setItem("token", token);
+
+    console.log("✅ Logged in");
+
+  } catch (err) {
+    console.error("Login error:", err);
+  }
+}
+
+// =========================
+// WALLET
+// =========================
+async function updateWallet(){
+
+  try {
+    const res = await fetch("/qcompute/wallet", {
+      headers: {
+        "Authorization": token
+      }
+    });
+
+    const data = await res.json();
+
+    document.getElementById("earnings").innerText =
+      "$" + Number(data.balance || 0).toFixed(2);
+
+  } catch (err) {
+    console.error("Wallet error:", err);
+  }
+}
+
+// =========================
+// TRANSACTIONS
+// =========================
+async function loadTransactions(){
+
+  try {
+    const res = await fetch("/qcompute/transactions", {
+      headers: {
+        "Authorization": token
+      }
+    });
+
+    const data = await res.json();
+
+    const ul = document.getElementById("tx");
+    ul.innerHTML = "";
+
+    data.forEach(t => {
+      const li = document.createElement("li");
+      li.innerText =
+        `+$${Number(t.reward).toFixed(2)} — ${new Date(t.created_at).toLocaleTimeString()}`;
+      ul.appendChild(li);
+    });
+
+  } catch (err) {
+    console.error("Transactions error:", err);
+  }
+}
+
+// =========================
+// WORKER (EARNING ENGINE)
+// =========================
+async function start(){
+
+  if (!token) {
+    alert("Not logged in!");
+    return;
   }
 
+  while(true){
+
+    try {
+      // GET TASK
+      const res = await fetch("/qcompute/task", {
+        headers: {
+          "Authorization": token
+        }
+      });
+
+      const task = await res.json();
+
+      if (!task || !task.id) {
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+
+      // SOLVE TASK
+      const result = task.number * 2;
+
+      // SUBMIT RESULT
+      const submit = await fetch("/qcompute/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token
+        },
+        body: JSON.stringify({
+          taskId: task.id,
+          result
+        })
+      });
+
+      const data = await submit.json();
+
+      if (data.success) {
+        console.log("💰 Earned:", task.reward);
+
+        await updateWallet();
+        await loadTransactions();
+      }
+
+    } catch (err) {
+      console.error("Worker error:", err);
+    }
+
+    // small delay (important for CPU + server)
+    await new Promise(r => setTimeout(r, 500));
+  }
 }
 
-// ===== Withdraw =====
+// =========================
+// WITHDRAW
+// =========================
 async function withdraw(){
 
-  const res = await fetch("/qcompute/withdraw",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ userId })
-  });
+  try {
+    const res = await fetch("/qcompute/withdraw", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token
+      }
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  alert(data.message || data.error);
+    alert(data.message || data.error);
 
-  updateWallet();
+    updateWallet();
+
+  } catch (err) {
+    console.error("Withdraw error:", err);
+  }
 }
 
-// ===== Auto Refresh =====
+// =========================
+// INIT APP
+// =========================
+async function init(){
+
+  if (!token) {
+    await login();
+  }
+
+  await updateWallet();
+  await loadTransactions();
+}
+
+// Auto start app
+init();
+
+// Refresh UI periodically
 setInterval(() => {
   updateWallet();
   loadTransactions();
-}, 3000);
-
-// Initial load
-updateWallet();
-loadTransactions();
+}, 5000);
