@@ -1,20 +1,20 @@
 import pkg from "pg";
 const { Pool } = pkg;
 
-let pool;
+console.log("DB URL exists:", process.env.DATABASE_URL ? "YES ✅" : "NO ❌");
 
-try {
-  pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
-  pool.on("connect", () => {
-    console.log("✅ Connected to DB");
-  });
+// Debug connection
+pool.on("connect", () => {
+  console.log("✅ DB connected");
+});
 
-} catch (err) {
-  console.error("❌ DB INIT ERROR:", err);
-}
+pool.on("error", (err) => {
+  console.error("🔥 DB ERROR:", err);
+});
 
 export { pool };
