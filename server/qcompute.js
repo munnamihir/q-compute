@@ -64,4 +64,26 @@ router.post("/submit", auth, async (req, res) => {
   res.json({ success: false });
 });
 
+// ===== WALLET (AUTH REQUIRED)
+router.get("/wallet", auth, async (req, res) => {
+
+  const user = await pool.query(
+    "SELECT balance FROM users WHERE id=$1",
+    [req.user.id]
+  );
+
+  res.json({ balance: user.rows[0].balance });
+});
+
+// ===== TRANSACTIONS
+router.get("/transactions", auth, async (req, res) => {
+
+  const tx = await pool.query(
+    "SELECT * FROM transactions WHERE user_id=$1 ORDER BY created_at DESC",
+    [req.user.id]
+  );
+
+  res.json(tx.rows);
+});
+
 export default router;
