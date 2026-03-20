@@ -178,7 +178,12 @@ async function withdraw(){
 async function init(){
 
   if (!token) {
-    await login();
+    await login(); // WAIT for login
+  }
+
+  if (!token) {
+    console.error("❌ No token, stopping");
+    return;
   }
 
   await updateWallet();
