@@ -14,7 +14,7 @@ async function login(){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         username: "mihir",
-        password: "12345678"
+        password: "MeRW84#Munna"
       })
     });
 
